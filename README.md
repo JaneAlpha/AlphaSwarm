@@ -22,7 +22,7 @@ The project is aimed at developers and researchers who want to study agent-based
 
 ### Controlled Agent Loop
 
-AlphaSwarm uses a four-agent loop rather than a single prompt that asks the model to list factors. Each agent has a separate research responsibility, and the pipeline passes structured results between them.
+AlphaSwarm uses a four-agent loop for factor research. Each agent has a separate research responsibility, and the pipeline passes structured results between them.
 
 The loop is designed around a simple research cycle:
 
@@ -51,7 +51,7 @@ Factor ideas are expected to pass through tools before becoming calculation targ
 
 ### Evaluation-Driven Iteration
 
-The system does not treat all generated factors equally. Candidate factors are calculated and evaluated with quantitative metrics such as IC, ICIR, multi-period performance, and stratified returns. Evaluation feedback is passed into later rounds so that the loop can refine exploration direction instead of repeatedly generating unrelated ideas.
+Candidate factors are calculated and evaluated with quantitative metrics such as IC, ICIR, multi-period performance, and stratified returns. Evaluation feedback is passed into later rounds so that the loop can refine exploration direction across iterations.
 
 ### Research Memory Boundary
 
@@ -181,7 +181,7 @@ The dashboard reads local run outputs and provides a project-level view of facto
 
 - This is a research prototype, not an investment advisory system.
 - Generated factors require independent validation before any real trading use.
-- LLM availability is required for the agent loop; the system does not silently replace failed LLM calls with rule-based fallback generation.
+- LLM availability is required for the agent loop; failed LLM calls stop the run and are reported as runtime errors.
 - Runtime checkpoints, historical results, and local market data are excluded from version control by default.
 
 ## License
