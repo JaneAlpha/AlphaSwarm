@@ -64,6 +64,175 @@ Ideator -> Calculator -> Evaluator -> Optimizer -> 下一轮 Ideator
 
 提示词层支持 skill 文档，用于因子假设生成和因子任务转换。skill 为 agent 提供领域研究模式，pipeline 负责执行校验、计算和评估。
 
+## 四个 Agent 设计拆解
+
+### `FactorIdeator`
+
+`FactorIdeator` 负责把研究上下文转化为经过工具校验的候选因子想法。
+
+设计目标：
+
+- 生成可检验的因子假设。
+- 使用 ResearchMemory、Optimizer 反馈、历史因子、阻断方向和基础因子池上下文。
+- 为每个因子生成研究身份字段，包括 `family_tag`、`strategy`、`parent_factors`、`hypothesis`、`expected_direction` 和 `risk_note`。
+
+操作材料：
+
+- `checkpoints/base_factors.json` 中的基础因子池。
+- 数据加载器识别出的 ETF 面板字段。
+- ResearchMemory 中的活跃假设、推广模式、拒绝模式、阻断因子、阻断家族和观察名单。
+- 上一轮 `FactorOptimizer` 给出的反馈。
+- `prompts/skills/` 下的 skill 文档。
+
+可用工具：
+
+| Tool | 作用 |
+| --- | --- |
+| `list_skills` | 列出允许读取的研究 skill。 |
+| `load_skill` | 加载 RD-Agent 派生的假设生成和因子任务转换 skill。 |
+| `query_base_factor_pool` | 查询基础因子名称、公式、类别、方向和经济含义。 |
+| `describe_data_fields` | 查询可用数据字段、类型和覆盖率。 |
+| `analyze_factor_orthogonality` | 检查候选表达式与基础因子或参考表达式的相关性。 |
+| `validate_and_compute_factor` | 校验候选因子的结构和可计算性。 |
+| `evaluate_factor_quick` | 在接受候选因子前快速评估 IC 和分层收益。 |
+
+主要产出：
+
+- `factors_list.json`，包含表达式、家族标签、研究身份、工具校验结果和快速评估结果。
+
+### `FactorCalculator`
+
+`FactorCalculator` 负责在 ETF 面板上执行候选表达式，生成可用于评估的因子计算结果。
+
+设计目标：
+
+- 在计算前再次校验表达式。
+- 在算子执行前展开基础因子引用。
+- 对可安全修复的无效表达式进行修复。
+- 保留原始表达式、修复表达式和计算结果之间的关系。
+
+操作材料：
+
+- `FactorIdeator` 生成的候选因子。
+- `ETFDataLoader` 加载的 ETF 日频面板。
+- 表达式解析器和算子引擎。
+- 基础因子引用注册表。
+
+可用能力：
+
+| 能力 | 作用 |
+| --- | --- |
+| `validate_and_compute_factor` | 解析表达式、展开基础因子引用、计算因子值并返回覆盖率和统计信息。 |
+| 表达式修复 | 在表达式校验失败时尝试受控修复。 |
+| `evaluate_factor_quick` | 对成功计算的表达式生成快速表现指标。 |
+| 可视化构建 | 生成多周期表现和分层收益的因子可视化数据。 |
+
+主要产出：
+
+- `factor_cal_results.json`
+- `cal_report.md`
+- `cal_visualizations.json`
+- `cal_visualizations/<factor>.json`
+
+### `FactorEvaluator`
+
+`FactorEvaluator` 负责把计算结果转化为研究判断。
+
+设计目标：
+
+- 使用量化标准评价每个成功计算的因子。
+- 根据 score、quality、direction、IC、ICIR、IC 胜率、多空收益和分层单调性进行排序。
+- 生成可被 `FactorOptimizer` 消费的结构化反馈。
+- 使用 LLM 做解释性分析，但以指标证据作为判断基础。
+
+操作材料：
+
+- 成功计算的因子结果。
+- `FactorCalculator` 生成的快速表现指标。
+- 多周期指标和分层回测结果。
+- 因子家族标签和研究身份字段。
+
+评价维度：
+
+| 维度 | 含义 |
+| --- | --- |
+| `mean_ic` | 日度截面 Spearman IC 的平均值。 |
+| `icir` | IC 均值相对 IC 波动的稳定性指标。 |
+| `ic_win_rate` | IC 方向正确的样本占比。 |
+| `long_short_return` | 最高分组和最低分组之间的收益差。 |
+| `directional_monotonicity` | 分层收益是否符合预期方向的单调性。 |
+| `score_breakdown` | 因子排序使用的加权证据。 |
+
+主要产出：
+
+- `evaluation_report.md`
+- 写入 `ranked_factors.json` 的排序因子内容
+- `optimizer_feedback_hook`，包含精炼、取反、变异、阻断候选和家族反馈。
+
+### `FactorOptimizer`
+
+`FactorOptimizer` 负责把评估证据转化为下一轮研究指令。
+
+设计目标：
+
+- 诊断因子有效或失败的原因。
+- 判断哪些模式应该推广、拒绝、精炼、取反、变异或阻断。
+- 生成下一轮候选因子蓝图。
+- 在返回 loop 前用工具校验优化想法。
+- 执行阻断因子精炼和阻断家族探索等硬约束。
+
+操作材料：
+
+- Pipeline 构建的完整研究上下文。
+- 当前候选因子及其研究身份。
+- 计算摘要和表达式失败信息。
+- 评估摘要、排序因子和 `optimizer_feedback_hook`。
+- 基础因子池摘要。
+- ResearchMemory 和因子家族集中度状态。
+- 近期历史因子名称和表现。
+
+可用工具：
+
+| Tool | 作用 |
+| --- | --- |
+| `query_base_factor_pool` | 查询可支持下一轮蓝图的基础因子。 |
+| `describe_data_fields` | 确认可使用的数据输入。 |
+| `validate_and_compute_factor` | 检查候选蓝图是否能转化为可计算表达式。 |
+| `evaluate_factor_quick` | 快速测试候选表达式的初步表现。 |
+| `analyze_factor_orthogonality` | 检查候选蓝图与基础因子或父因子的重合程度。 |
+
+主要产出：
+
+- `diagnostics`
+- `next_round_plan`
+- `candidate_blueprints`
+- `guardrails`
+- `refinement_blocked`
+- `family_exploration_blocked`
+- `reject_patterns`
+- `promote_patterns`
+- 追加到 `evaluation_report.md` 的最终研究建议
+
+### Pipeline 层编排
+
+Pipeline 负责协调四个 agent，并保持职责边界。
+
+每轮执行顺序：
+
+1. `FactorIdeator` 发现经过工具校验的候选因子。
+2. `FactorCalculator` 计算表达式并记录修复情况。
+3. `FactorEvaluator` 排序因子表现并生成 optimizer hooks。
+4. `FactorOptimizer` 在非最终轮生成下一轮反馈，在最终轮写入最终研究建议。
+
+Pipeline 管理的 hook：
+
+- 将计算修复结果回填到因子记录。
+- 将研究来源写入排序因子。
+- 在轮次之间维护 ResearchMemory。
+- 追踪因子家族集中度并阻断过度集中的家族。
+- 写入 `status.json`，用于运行追踪和失败定位。
+- 将输出同时写入最新检查点和按时间戳保存的结果目录。
+
 ## 目录结构
 
 ```text

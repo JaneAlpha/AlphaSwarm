@@ -61,6 +61,175 @@ The project distinguishes research state from runtime tracing. Research memory i
 
 The prompt layer supports skill documents for factor hypothesis generation and factor-task conversion. These skills give the agents domain-specific research patterns without hard-coding every candidate factor into the pipeline.
 
+## Agent Design Breakdown
+
+### `FactorIdeator`
+
+`FactorIdeator` is responsible for turning research context into tool-validated candidate factor ideas.
+
+Design goal:
+
+- Generate testable factor hypotheses, not free-form factor names.
+- Use ResearchMemory, optimizer feedback, prior factors, blocked directions, and base factor context.
+- Assign each factor a research identity, including `family_tag`, `strategy`, `parent_factors`, `hypothesis`, `expected_direction`, and `risk_note`.
+
+Operating materials:
+
+- Base factor pool from `checkpoints/base_factors.json`.
+- Available ETF panel fields from the data loader.
+- ResearchMemory, including active hypotheses, promoted patterns, rejected patterns, blocked factors, blocked families, and watchlist factors.
+- Previous round feedback from `FactorOptimizer`.
+- Skill documents under `prompts/skills/`.
+
+Available tools:
+
+| Tool | Purpose |
+| --- | --- |
+| `list_skills` | Lists allowed research skills. |
+| `load_skill` | Loads the RD-Agent-derived hypothesis and factor-task skills. |
+| `query_base_factor_pool` | Reads base factor definitions, formulas, categories, directions, and economic meanings. |
+| `describe_data_fields` | Describes available data fields, types, and coverage. |
+| `analyze_factor_orthogonality` | Checks correlation against base factors or reference expressions. |
+| `validate_and_compute_factor` | Validates candidate factor structure and computability. |
+| `evaluate_factor_quick` | Runs a quick IC and stratified-return evaluation before accepting a candidate. |
+
+Main output:
+
+- `factors_list.json`, including validated factor expressions, family tags, research identity, tool validation, and quick evaluation.
+
+### `FactorCalculator`
+
+`FactorCalculator` is responsible for executing candidate expressions on the ETF panel and producing calculation-grade factor results.
+
+Design goal:
+
+- Re-validate expressions before calculation.
+- Expand base-factor references before operator evaluation.
+- Repair invalid expressions when a safe repair is possible.
+- Preserve the link between original expression, repaired expression, and calculation result.
+
+Operating materials:
+
+- Candidate factors from `FactorIdeator`.
+- ETF daily panel loaded by `ETFDataLoader`.
+- Operator engine and expression parser.
+- Base factor reference registry.
+
+Available tools and internal capabilities:
+
+| Capability | Purpose |
+| --- | --- |
+| `validate_and_compute_factor` | Parses expressions, expands base-factor references, computes factor values, and returns coverage/statistics. |
+| Expression repair | Attempts controlled repair when an expression fails validation. |
+| `evaluate_factor_quick` | Computes quick performance for successful factor expressions. |
+| Visualization builder | Creates per-factor visualization payloads for multi-period metrics and stratified returns. |
+
+Main outputs:
+
+- `factor_cal_results.json`
+- `cal_report.md`
+- `cal_visualizations.json`
+- `cal_visualizations/<factor>.json`
+
+### `FactorEvaluator`
+
+`FactorEvaluator` is responsible for converting calculation results into research judgments.
+
+Design goal:
+
+- Evaluate each successful factor with quantitative standards.
+- Rank factors using score, quality, direction, IC, ICIR, IC win rate, long-short return, and stratified monotonicity.
+- Produce structured feedback that can be consumed by `FactorOptimizer`.
+- Require LLM analysis for interpretation while keeping metric evidence as the basis.
+
+Operating materials:
+
+- Successful factor calculation results.
+- Quick performance output from `FactorCalculator`.
+- Multi-period metrics and stratified backtest results.
+- Factor family tags and research identity.
+
+Evaluation dimensions:
+
+| Dimension | Meaning |
+| --- | --- |
+| `mean_ic` | Average cross-sectional Spearman IC. |
+| `icir` | IC stability measured by mean IC divided by IC volatility. |
+| `ic_win_rate` | Share of periods where IC direction is favorable. |
+| `long_short_return` | Return spread between top and bottom quantile groups. |
+| `directional_monotonicity` | Whether stratified returns are monotonic in the expected direction. |
+| `score_breakdown` | Weighted evidence used for factor ranking. |
+
+Main outputs:
+
+- `evaluation_report.md`
+- Ranked factor payload used later in `ranked_factors.json`
+- `optimizer_feedback_hook`, including refinement, inversion, mutation, block candidates, and family feedback.
+
+### `FactorOptimizer`
+
+`FactorOptimizer` is responsible for turning evaluation evidence into the next research instruction set.
+
+Design goal:
+
+- Diagnose why factors worked or failed.
+- Decide which patterns should be promoted, rejected, refined, inverted, or blocked.
+- Generate candidate blueprints for the next round.
+- Use tools to validate optimization ideas before returning them to the loop.
+- Enforce hard constraints such as blocked factor refinement and blocked family exploration.
+
+Operating materials:
+
+- Full research context built by the pipeline.
+- Current candidate factors and their research identities.
+- Calculation summary and failed-expression information.
+- Evaluation summary, ranked factors, and `optimizer_feedback_hook`.
+- Base factor pool summary.
+- ResearchMemory and factor-family concentration state.
+- Recent historical factor names and performance.
+
+Available tools:
+
+| Tool | Purpose |
+| --- | --- |
+| `query_base_factor_pool` | Checks base factors that may support next-round blueprints. |
+| `describe_data_fields` | Confirms available data inputs. |
+| `validate_and_compute_factor` | Tests whether a proposed blueprint can become a computable expression. |
+| `evaluate_factor_quick` | Tests early performance evidence for a proposed expression. |
+| `analyze_factor_orthogonality` | Checks whether a blueprint overlaps too much with base or parent factors. |
+
+Main outputs:
+
+- `diagnostics`
+- `next_round_plan`
+- `candidate_blueprints`
+- `guardrails`
+- `refinement_blocked`
+- `family_exploration_blocked`
+- `reject_patterns`
+- `promote_patterns`
+- Final research advice appended to `evaluation_report.md`
+
+### Pipeline-Level Coordination
+
+The pipeline coordinates the four agents and keeps their responsibilities separated.
+
+Per iteration:
+
+1. `FactorIdeator` discovers validated candidate factors.
+2. `FactorCalculator` computes expressions and records repairs.
+3. `FactorEvaluator` ranks factor performance and builds optimizer hooks.
+4. `FactorOptimizer` produces feedback for the next round, except on the final loop where it writes final research advice.
+
+Pipeline-managed hooks:
+
+- Attaches calculation repairs back to factor records.
+- Attaches research sources to ranked factors.
+- Maintains ResearchMemory across loop iterations.
+- Tracks factor family concentration and blocks over-concentrated families.
+- Writes `status.json` for runtime tracing and failure localization.
+- Writes mirrored outputs to latest checkpoints and timestamped result directories.
+
 ## Repository Layout
 
 ```text
