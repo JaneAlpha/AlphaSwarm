@@ -21,6 +21,24 @@ AlphaSwarm 是一个多智能体量化因子发现系统，覆盖因子假设生
 - 对候选因子排序，并将评估反馈用于后续探索。
 - 将运行结果落盘，支持 dashboard 查看和审计。
 
+## 关键概念
+
+本 README 使用以下项目术语：
+
+| 术语 | 含义 |
+| --- | --- |
+| 因子假设 | 一个可检验的研究想法，用来说明某个可度量的 ETF 特征为什么可能预测未来收益。 |
+| 因子表达式 | 使用可用行情字段、算子和可选基础因子引用写成的可计算公式。 |
+| 基础因子池 | agent loop 开始前已经生成的一组基础因子。 |
+| 研究上下文 | 某个 agent 在当前步骤可以读取的信息，包括历史因子、计算结果、评价指标和约束条件。 |
+| ResearchMemory | 一份精简的研究状态，保存活跃假设、推广方向、拒绝方向、阻断因子、阻断因子家族和观察名单。 |
+| 研究身份 | 附着在因子上的元信息，包括因子家族、生成策略、父因子、研究假设、预期方向和风险提示。 |
+| 因子家族 | 因子的研究类别，例如动量、反转、波动风险、流动性压力、量价确认。 |
+| 候选蓝图 | Optimizer 给下一轮准备的因子方案，包含策略、父因子、表达式意图、预期方向和风险提示。 |
+| Optimizer 反馈钩子 | Evaluator 给 Optimizer 准备的结构化反馈，包括精炼、取反、变异、阻断候选和家族反馈。 |
+| 运行状态 | 写入 `status.json` 的运行进度，用于定位当前 agent、步骤、轮次和失败位置。 |
+| JSON 字段名 | `candidate_blueprints`、`refinement_blocked` 等名称是结果文件和 dashboard 使用的字段名。 |
+
 ## 技术亮点
 
 ### 受控 Agent Loop
@@ -80,7 +98,7 @@ Ideator -> Calculator -> Evaluator -> Optimizer -> 下一轮 Ideator
 
 - `checkpoints/base_factors.json` 中的基础因子池。
 - 数据加载器识别出的 ETF 面板字段。
-- ResearchMemory 中的活跃假设、推广模式、拒绝模式、阻断因子、阻断家族和观察名单。
+- ResearchMemory 中的活跃假设、推广方向、拒绝方向、阻断因子、阻断家族和观察名单。
 - 上一轮 `FactorOptimizer` 给出的反馈。
 - `prompts/skills/` 下的 skill 文档。
 
@@ -167,7 +185,7 @@ Ideator -> Calculator -> Evaluator -> Optimizer -> 下一轮 Ideator
 
 - `evaluation_report.md`
 - 写入 `ranked_factors.json` 的排序因子内容
-- `optimizer_feedback_hook`，包含精炼、取反、变异、阻断候选和家族反馈。
+- `optimizer_feedback_hook`，即给 Optimizer 使用的结构化反馈包，包含精炼、取反、变异、阻断候选和家族反馈。
 
 ### `FactorOptimizer`
 
@@ -186,7 +204,7 @@ Ideator -> Calculator -> Evaluator -> Optimizer -> 下一轮 Ideator
 - Pipeline 构建的完整研究上下文。
 - 当前候选因子及其研究身份。
 - 计算摘要和表达式失败信息。
-- 评估摘要、排序因子和 `optimizer_feedback_hook`。
+- 评估摘要、排序因子和 Optimizer 反馈包。
 - 基础因子池摘要。
 - ResearchMemory 和因子家族集中度状态。
 - 近期历史因子名称和表现。
@@ -205,12 +223,12 @@ Ideator -> Calculator -> Evaluator -> Optimizer -> 下一轮 Ideator
 
 - `diagnostics`
 - `next_round_plan`
-- `candidate_blueprints`
-- `guardrails`
-- `refinement_blocked`
-- `family_exploration_blocked`
-- `reject_patterns`
-- `promote_patterns`
+- `candidate_blueprints`：Optimizer 提出的下一轮候选因子蓝图。
+- `guardrails`：下一轮构想需要遵守的约束。
+- `refinement_blocked`：后续禁止继续精炼的因子。
+- `family_exploration_blocked`：后续禁止继续探索的因子家族。
+- `reject_patterns`：证据较弱的研究方向。
+- `promote_patterns`：证据较强的研究方向。
 - 追加到 `evaluation_report.md` 的最终研究建议
 
 ### Pipeline 层编排
@@ -221,10 +239,10 @@ Pipeline 负责协调四个 agent，并保持职责边界。
 
 1. `FactorIdeator` 发现经过工具校验的候选因子。
 2. `FactorCalculator` 计算表达式并记录修复情况。
-3. `FactorEvaluator` 排序因子表现并生成 optimizer hooks。
+3. `FactorEvaluator` 排序因子表现并生成 Optimizer 反馈包。
 4. `FactorOptimizer` 在非最终轮生成下一轮反馈，在最终轮写入最终研究建议。
 
-Pipeline 管理的 hook：
+Pipeline 管理的衔接动作：
 
 - 将计算修复结果回填到因子记录。
 - 将研究来源写入排序因子。

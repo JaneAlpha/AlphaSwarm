@@ -18,6 +18,24 @@ The project is aimed at developers and researchers who want to study agent-based
 - Ranks candidate factors and feeds evaluation feedback into later exploration.
 - Records local run outputs for audit and dashboard review.
 
+## Key Concepts
+
+This README uses a small set of project terms:
+
+| Term | Meaning |
+| --- | --- |
+| Factor hypothesis | A testable research idea about why a measurable ETF feature may predict future returns. |
+| Factor expression | A computable formula built from available market fields, operators, and optional base-factor references. |
+| Base factor pool | The initial set of known factors generated before the agent loop starts. |
+| Research context | The information given to an agent at a specific step, including prior factors, calculation results, evaluation metrics, and active constraints. |
+| ResearchMemory | A compact loop-level state that keeps active hypotheses, promoted directions, rejected directions, blocked factors, blocked factor families, and watchlist factors. |
+| Research identity | Metadata attached to each factor, including family, strategy, parent factors, hypothesis, expected direction, and risk note. |
+| Factor family | A research category such as momentum, reversal, volatility risk, liquidity pressure, or volume-price confirmation. |
+| Candidate blueprint | An optimizer proposal for a next-round factor, including its research strategy, parent factors, expression intent, expected direction, and risk note. |
+| Optimizer feedback hook | Structured evaluation feedback prepared for the optimizer, including candidates for refinement, inversion, mutation, blocking, and family-level feedback. |
+| Runtime status | Operational progress written to `status.json`, used to locate the active agent, step, iteration, and failure point. |
+| JSON field names | Names such as `candidate_blueprints` and `refinement_blocked` are output fields used by result files and downstream dashboard views. |
+
 ## Technical Highlights
 
 ### Controlled Agent Loop
@@ -69,7 +87,7 @@ The prompt layer supports skill documents for factor hypothesis generation and f
 
 Design goal:
 
-- Generate testable factor hypotheses, not free-form factor names.
+- Generate testable factor hypotheses.
 - Use ResearchMemory, optimizer feedback, prior factors, blocked directions, and base factor context.
 - Assign each factor a research identity, including `family_tag`, `strategy`, `parent_factors`, `hypothesis`, `expected_direction`, and `risk_note`.
 
@@ -77,7 +95,7 @@ Operating materials:
 
 - Base factor pool from `checkpoints/base_factors.json`.
 - Available ETF panel fields from the data loader.
-- ResearchMemory, including active hypotheses, promoted patterns, rejected patterns, blocked factors, blocked families, and watchlist factors.
+- ResearchMemory, including active hypotheses, promoted directions, rejected directions, blocked factors, blocked families, and watchlist factors.
 - Previous round feedback from `FactorOptimizer`.
 - Skill documents under `prompts/skills/`.
 
@@ -99,7 +117,7 @@ Main output:
 
 ### `FactorCalculator`
 
-`FactorCalculator` is responsible for executing candidate expressions on the ETF panel and producing calculation-grade factor results.
+`FactorCalculator` is responsible for executing candidate expressions on the ETF panel and producing factor results for evaluation.
 
 Design goal:
 
@@ -183,7 +201,7 @@ Operating materials:
 - Full research context built by the pipeline.
 - Current candidate factors and their research identities.
 - Calculation summary and failed-expression information.
-- Evaluation summary, ranked factors, and `optimizer_feedback_hook`.
+- Evaluation summary, ranked factors, and the optimizer feedback hook.
 - Base factor pool summary.
 - ResearchMemory and factor-family concentration state.
 - Recent historical factor names and performance.
@@ -202,12 +220,12 @@ Main outputs:
 
 - `diagnostics`
 - `next_round_plan`
-- `candidate_blueprints`
-- `guardrails`
-- `refinement_blocked`
-- `family_exploration_blocked`
-- `reject_patterns`
-- `promote_patterns`
+- `candidate_blueprints`: next-round factor blueprints proposed by the optimizer.
+- `guardrails`: constraints that the next ideation round should follow.
+- `refinement_blocked`: factors excluded from later refinement.
+- `family_exploration_blocked`: factor families excluded from later exploration.
+- `reject_patterns`: weak research directions.
+- `promote_patterns`: research directions with stronger evidence.
 - Final research advice appended to `evaluation_report.md`
 
 ### Pipeline-Level Coordination
@@ -218,10 +236,10 @@ Per iteration:
 
 1. `FactorIdeator` discovers validated candidate factors.
 2. `FactorCalculator` computes expressions and records repairs.
-3. `FactorEvaluator` ranks factor performance and builds optimizer hooks.
+3. `FactorEvaluator` ranks factor performance and builds the optimizer feedback package.
 4. `FactorOptimizer` produces feedback for the next round, except on the final loop where it writes final research advice.
 
-Pipeline-managed hooks:
+Pipeline-managed coordination:
 
 - Attaches calculation repairs back to factor records.
 - Attaches research sources to ranked factors.
