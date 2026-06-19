@@ -1,0 +1,12 @@
+llm:
+  provider: deepseek
+  model: deepseek-chat
+  base_url: https://api.deepseek.com
+  env_key: DEEPSEEK_API_KEY
+
+factor_mining:
+  generation_mode: tool
+  single_run_only: true
+  tools:
+    - validate_and_compute_factor
+    - evaluate_factor_quick

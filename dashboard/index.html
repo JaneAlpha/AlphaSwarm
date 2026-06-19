@@ -1,0 +1,1037 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MAS-FactorMiner Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #667085;
+      --line: #d6dce5;
+      --accent: #0f766e;
+      --accent-2: #2563eb;
+      --soft: #e9f6f3;
+      --soft-2: #eff6ff;
+      --warn: #9a3412;
+      --warn-bg: #fff7ed;
+      --ok: #067647;
+      --ok-bg: #ecfdf3;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 30px 0 44px;
+    }
+
+    header { margin-bottom: 22px; }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    h2, h3 { margin: 0; letter-spacing: 0; }
+    h2 { font-size: 18px; }
+    h3 { font-size: 16px; }
+
+    .subtitle, .desc, .band-title p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .subtitle { margin: 0; font-size: 15px; }
+    .desc { margin: 0 0 8px; }
+    .band-title p { margin: 4px 0 0; }
+
+    .band-title {
+      margin: 28px 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .card { padding: 14px 16px; }
+
+    .label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .value {
+      margin-top: 6px;
+      font-size: 24px;
+      font-weight: 760;
+    }
+
+    .value.small {
+      font-size: 15px;
+      overflow-wrap: anywhere;
+    }
+
+    .panel {
+      min-width: 0;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .panel.wide { grid-column: 1 / -1; }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfd;
+    }
+
+    .tag {
+      display: inline-flex;
+      min-height: 24px;
+      align-items: center;
+      padding: 2px 9px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 720;
+      white-space: nowrap;
+    }
+
+    .content { padding: 16px; }
+
+    code {
+      color: #344054;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pill {
+      display: inline-flex;
+      min-height: 22px;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--soft-2);
+      color: var(--accent-2);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .ok {
+      background: var(--ok-bg);
+      color: var(--ok);
+    }
+
+    .table-wrap {
+      max-height: 560px;
+      overflow: auto;
+    }
+
+    .ranked-table {
+      max-height: 760px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+    }
+
+    th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) {
+      text-align: left;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f8fafc;
+      color: #475467;
+      font-weight: 720;
+    }
+
+    .source-cell {
+      min-width: 320px;
+      max-width: 520px;
+      white-space: normal;
+      text-align: left;
+      color: #344054;
+      vertical-align: top;
+    }
+
+    .source-note {
+      max-height: 96px;
+      overflow: auto;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .notice {
+      padding: 14px 16px;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      background: var(--warn-bg);
+      color: var(--warn);
+    }
+
+    .factor-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .factor-button {
+      min-height: 30px;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .factor-button.active {
+      border-color: var(--accent-2);
+      background: var(--soft-2);
+      color: var(--accent-2);
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .viz-block {
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .viz-block h4 {
+      margin: 0 0 10px;
+      font-size: 14px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 44px minmax(120px, 1fr) 72px;
+      gap: 10px;
+      align-items: center;
+      margin: 8px 0;
+      font-size: 12px;
+    }
+
+    .bar-track {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #eef2f6;
+    }
+
+    .bar-fill {
+      height: 100%;
+      min-width: 2px;
+      border-radius: 999px;
+      background: var(--accent-2);
+    }
+
+    .bar-fill.negative { background: var(--warn); }
+    .bar-value { text-align: right; color: var(--muted); }
+
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 12px 0 14px;
+    }
+
+    .metric-chip {
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfd;
+    }
+
+    .metric-chip .label { font-size: 12px; }
+    .metric-chip .value { font-size: 18px; }
+
+    .mini-bars {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .archive-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0 6px;
+    }
+
+    .archive-button {
+      min-height: 32px;
+      padding: 5px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .archive-button.active {
+      border-color: var(--accent);
+      background: var(--soft);
+      color: var(--accent);
+    }
+
+    .run-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 14px 0 4px;
+    }
+
+    .run-button {
+      min-height: 34px;
+      padding: 6px 14px;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      background: var(--accent);
+      color: #ffffff;
+      font-weight: 720;
+      cursor: pointer;
+    }
+
+    .run-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .run-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .run-field input {
+      width: 72px;
+      height: 34px;
+      padding: 5px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    .run-status {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      main {
+        width: min(100% - 24px, 1280px);
+        padding-top: 24px;
+      }
+
+      .cards { grid-template-columns: 1fr; }
+      .viz-grid { grid-template-columns: 1fr; }
+      .metric-strip, .mini-bars { grid-template-columns: 1fr; }
+      .panel-head, .band-title {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="app"></main>
+
+  <script>
+    const text = {
+      title: "MAS-FactorMiner Dashboard",
+      subtitle: "MAS-FactorMiner \u53ef\u89c6\u5316\u5de5\u4f5c\u53f0\uff1a\u7edf\u4e00\u542f\u52a8\u56e0\u5b50\u6316\u6398\u6d41\u7a0b\uff0c\u8ffd\u8e2a\u667a\u80fd\u4f53\u8fd0\u884c\u72b6\u6001\uff0c\u67e5\u770b\u5386\u53f2\u56e0\u5b50\u7814\u7a76\u7ed3\u679c\u3002",
+      dashboard: "\u4eea\u8868\u76d8",
+      dashboardDesc: "\u7528\u4e8e\u67e5\u770b\u57fa\u7840\u56e0\u5b50\u3001\u5b9e\u65f6\u8fd0\u884c\u72b6\u6001\u548c\u5168\u5c40\u56e0\u5b50\u6392\u5e8f\u7ed3\u679c\u3002",
+      dynamic: "\u52a8\u6001\u8bfb\u53d6 results",
+      baseOverview: "\u57fa\u7840\u56e0\u5b50\u6982\u89c8",
+      loopOverview: "\u52a8\u6001\u8fd0\u884c\u72b6\u6001",
+      calVisuals: "Cal \u56e0\u5b50\u8868\u73b0\u53ef\u89c6\u5316",
+      ranked: "\u56e0\u5b50\u6392\u5e8f",
+      loadingBase: "\u6b63\u5728\u8bfb\u53d6\u57fa\u7840\u56e0\u5b50\u6570\u636e...",
+      loadingLoop: "\u6b63\u5728\u8bfb\u53d6\u5faa\u73af\u72b6\u6001...",
+      loadingCalVisuals: "\u6b63\u5728\u8bfb\u53d6 Cal \u56e0\u5b50\u8868\u73b0\u53ef\u89c6\u5316...",
+      loadingRanked: "\u6b63\u5728\u8bfb\u53d6\u56e0\u5b50\u6392\u5e8f\u7ed3\u679c..."
+    };
+
+    const categoryNames = {
+      momentum: "\u52a8\u91cf",
+      reversal: "\u53cd\u8f6c",
+      volatility: "\u6ce2\u52a8\u7387",
+      volume_price: "\u91cf\u4ef7",
+      trend: "\u8d8b\u52bf",
+      liquidity: "\u6d41\u52a8\u6027"
+    };
+
+    const qualityNames = {
+      weak: "\u504f\u5f31",
+      effective: "\u6709\u6548",
+      excellent: "\u4f18\u79c0"
+    };
+
+    const directionNames = {
+      positive: "\u6b63\u5411",
+      negative: "\u8d1f\u5411",
+      neutral: "\u4e2d\u6027"
+    };
+
+    document.getElementById("app").innerHTML = `
+      <header>
+        <h1>${text.title}</h1>
+        <p class="subtitle">${text.subtitle}</p>
+        <div class="run-bar">
+          <label class="run-field">\u6700\u5927\u5faa\u73af
+            <input id="run-max-iterations" type="number" min="1" max="20" step="1" value="3">
+          </label>
+          <label class="run-field">\u6bcf\u8f6e\u56e0\u5b50
+            <input id="run-factors-per-round" type="number" min="1" max="20" step="1" value="3">
+          </label>
+          <button class="run-button" id="run-loop-button">\u542f\u52a8\u667a\u80fd\u4f53\u56e0\u5b50\u6316\u6398</button>
+          <span class="run-status" id="run-loop-status">\u672a\u542f\u52a8</span>
+        </div>
+        <div class="archive-bar" id="archive-bar"></div>
+      </header>
+
+      <div class="band-title">
+        <div>
+          <h2>${text.dashboard}</h2>
+          <p>${text.dashboardDesc}</p>
+        </div>
+        <span class="tag">${text.dynamic}</span>
+      </div>
+
+      ${panel("base-dashboard", text.baseOverview, "base_factors.json", text.loadingBase)}
+      ${panel("loop-dashboard", text.loopOverview, "runtime", text.loadingLoop)}
+      ${panel("cal-visual-dashboard", text.calVisuals, "cal_visualizations.json", text.loadingCalVisuals, true)}
+      ${panel("ranked-dashboard", text.ranked, "ranked_factors.json", text.loadingRanked, true)}
+    `;
+
+    const baseDashboard = document.getElementById("base-dashboard");
+    const loopDashboard = document.getElementById("loop-dashboard");
+    const calVisualDashboard = document.getElementById("cal-visual-dashboard");
+    const rankedDashboard = document.getElementById("ranked-dashboard");
+    const archiveBar = document.getElementById("archive-bar");
+    const runLoopButton = document.getElementById("run-loop-button");
+    const runLoopStatus = document.getElementById("run-loop-status");
+    const runMaxIterations = document.getElementById("run-max-iterations");
+    const runFactorsPerRound = document.getElementById("run-factors-per-round");
+    let archives = [];
+    let activeArchivePrefix = "";
+    let activeCalVisualFile = "";
+    let liveStatus = null;
+
+    function panel(id, title, file, loading, wide = false) {
+      return `
+        <section class="panel ${wide ? "wide" : ""}">
+          <div class="panel-head">
+            <h3>${title}</h3>
+            <span class="tag">${file}</span>
+          </div>
+          <div class="content" id="${id}">
+            <div class="notice">${loading}</div>
+          </div>
+        </section>
+      `;
+    }
+
+    function fmtNumber(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+      const number = Number(value);
+      const abs = Math.abs(number);
+      if (abs >= 100000000) return (number / 100000000).toFixed(2) + "\u4ebf";
+      if (abs >= 10000) return (number / 10000).toFixed(2) + "\u4e07";
+      if (abs !== 0 && abs < 0.0001) return number.toExponential(2);
+      return number.toFixed(4);
+    }
+
+    function fmtPercent(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+      return (Number(value) * 100).toFixed(2) + "%";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function qualityTag(quality) {
+      const label = qualityNames[quality] || quality || "-";
+      const cls = quality === "effective" || quality === "excellent" ? "pill ok" : "pill";
+      return `<span class="${cls}">${escapeHtml(label)}</span>`;
+    }
+
+    function renderBase(data) {
+      const snapshot = data.data_snapshot || {};
+      const categories = data.factor_categories || {};
+      const categoryText = Object.entries(categories)
+        .map(([key, items]) => `${categoryNames[key] || key} ${items.length}`)
+        .join("\uff0c");
+
+      baseDashboard.innerHTML = `
+        <section class="cards">
+          ${card("\u57fa\u7840\u56e0\u5b50\u6570\u91cf", data.quality?.factor_count ?? "-")}
+          ${card("ETF \u6570\u91cf", data.quality?.symbol_count ?? snapshot.symbols ?? "-")}
+          ${card("\u6700\u65b0\u622a\u9762\u65e5\u671f", escapeHtml(data.latest_date || "-"), true)}
+          ${card("\u6837\u672c\u533a\u95f4", `${escapeHtml(snapshot.start_date || "-")} \u81f3 ${escapeHtml(snapshot.end_date || "-")}`, true)}
+        </section>
+        <div class="meta">
+          <span class="pill">\u7c7b\u522b\uff1a${escapeHtml(categoryText || "-")}</span>
+          <span class="pill">\u6570\u636e\u884c\u6570\uff1a${fmtNumber(snapshot.rows || 0)}</span>
+        </div>
+      `;
+    }
+
+    function renderLoop(status) {
+      const trace = status.agent_run_trace || [];
+      const latestTrace = trace.slice(-24).reverse().map((item) => `
+        <tr>
+          <td>${escapeHtml(item.time || "-")}</td>
+          <td>${item.iteration ?? "-"}</td>
+          <td>${escapeHtml(item.agent || "-")}</td>
+          <td>${escapeHtml(item.step || "-")}</td>
+          <td>${escapeHtml(item.status || "-")}</td>
+          <td class="source-cell">${escapeHtml(formatTraceSummary(item))}</td>
+        </tr>
+      `).join("");
+      const calls = status.agent_calls || [];
+      const latestCalls = calls.slice(-12).reverse().map((item) => `
+        <tr>
+          <td>${escapeHtml(item.time || "-")}</td>
+          <td>${escapeHtml(item.agent || "-")}</td>
+          <td>${escapeHtml(item.called || "-")}</td>
+          <td class="source-cell">${escapeHtml(formatCompactJson(item.result || item.input || {}))}</td>
+        </tr>
+      `).join("");
+      const rows = (status.iterations || []).map((item) => `
+        <tr>
+          <td>${item.iteration}</td>
+          <td>${item.factors_count}</td>
+          <td>${item.calculation_success}</td>
+          <td>${item.effective_factors}</td>
+          <td>${item.excellent_factors}</td>
+          <td>${escapeHtml(item.top_factor?.name || "-")}</td>
+          <td>${fmtNumber(item.top_factor?.score)}</td>
+        </tr>
+      `).join("");
+
+      loopDashboard.innerHTML = `
+        <section class="cards">
+          ${card("\u5f53\u524d\u8f6e\u6b21", `${status.current_iteration ?? 0}/${status.max_iterations || "-"}`)}
+          ${card("\u7d2f\u8ba1\u53d1\u73b0\u56e0\u5b50", status.summary?.total_discovered_factors ?? "-")}
+        </section>
+        ${status.failure ? `<div class="notice">${escapeHtml(formatCompactJson(status.failure))}</div>` : ""}
+        <p class="desc">\u8be5\u770b\u677f\u5c55\u793a\u5f53\u524d\u8fd0\u884c\u8fdb\u5ea6\u548c\u667a\u80fd\u4f53\u6267\u884c\u8bb0\u5f55\u3002</p>
+        ${table(["\u65f6\u95f4", "\u8f6e\u6b21", "Agent", "\u6b65\u9aa4", "\u72b6\u6001", "\u6458\u8981"], latestTrace, "ranked-table")}
+      `;
+    }
+
+    function formatTraceSummary(item) {
+      if (item.error_message) return `${item.error_type || "Error"}: ${item.error_message}`;
+      if (item.summary) return formatCompactJson(item.summary);
+      return "-";
+    }
+
+    function formatCompactJson(value) {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value || "-");
+      }
+    }
+
+    function renderCalVisualManifest(data, prefix) {
+      const items = data.visualizations || [];
+      if (!items.length) {
+        calVisualDashboard.innerHTML = `<div class="notice">Cal \u9636\u6bb5\u6682\u65e0\u53ef\u5c55\u793a\u7684\u56e0\u5b50\u8868\u73b0\u53ef\u89c6\u5316\u3002</div>`;
+        return;
+      }
+      if (!items.some((item) => item.file === activeCalVisualFile)) {
+        activeCalVisualFile = items[0].file || "";
+      }
+      calVisualDashboard.innerHTML = `
+        <div class="factor-tabs">
+          ${items.map((item) => `
+            <button class="factor-button ${item.file === activeCalVisualFile ? "active" : ""}" data-file="${escapeHtml(item.file || "")}">
+              ${escapeHtml(item.name || "-")}
+            </button>
+          `).join("")}
+        </div>
+        <div id="cal-factor-visual"><div class="notice">${text.loadingCalVisuals}</div></div>
+      `;
+      calVisualDashboard.querySelectorAll(".factor-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeCalVisualFile = button.dataset.file || "";
+          renderCalVisualManifest(data, prefix);
+        });
+      });
+      loadCalFactorVisual(prefix, activeCalVisualFile);
+    }
+
+    function loadCalFactorVisual(prefix, file) {
+      const target = document.getElementById("cal-factor-visual");
+      if (!target || !file) return;
+      fetch(prefix + file, { cache: "no-store" })
+        .then((response) => response.json())
+        .then((data) => renderCalFactorVisual(target, data))
+        .catch((error) => {
+          target.innerHTML = `<div class="notice">\u65e0\u6cd5\u8bfb\u53d6\u56e0\u5b50\u53ef\u89c6\u5316\u6587\u4ef6\uff1a${escapeHtml(error.message)}</div>`;
+        });
+    }
+
+    function renderCalFactorVisual(target, data) {
+      const factor = data.factor || {};
+      const params = data.evaluation_parameters || {};
+      const periods = data.multi_period_metrics || [];
+      const stratified = data.stratified_backtest || {};
+      const horizonsText = (params.multi_horizons || periods.map((item) => item.horizon)).filter((item) => item !== null && item !== undefined).join(" / ") || "-";
+      const periodRows = periods.map((item) => `
+        <tr>
+          <td>${item.horizon ?? "-"}</td>
+          <td>${fmtNumber(item.mean_ic)}</td>
+          <td>${fmtNumber(item.icir)}</td>
+          <td>${fmtPercent(item.ic_win_rate)}</td>
+          <td>${fmtPercent(item.long_short_return)}</td>
+          <td>${fmtNumber(item.directional_monotonicity)}</td>
+          <td>${escapeHtml(directionNames[item.direction] || item.direction || "-")}</td>
+        </tr>
+      `).join("");
+      target.innerHTML = `
+        <div class="meta" style="margin-bottom:12px">
+          <span class="pill">${escapeHtml(factor.category || "-")}</span>
+          <span class="pill">${escapeHtml(factor.family_tag || "-")}</span>
+          <span class="pill">${qualityTag(factor.quality)}</span>
+          <span class="pill">\u8bc4\u5206\uff1a${fmtNumber(factor.score)}</span>
+        </div>
+        <div class="metric-strip">
+          ${metricChip("\u4e3b\u8bc4\u4ef7\u5468\u671f", `${params.primary_horizon ?? "-"}D`)}
+          ${metricChip("\u56de\u770b\u6837\u672c", `${params.recent_days ?? "-"} \u4ea4\u6613\u65e5`)}
+          ${metricChip("\u5206\u5c42\u6570", `${params.quantile_groups || stratified.group_count || "-"} \u7ec4`)}
+          ${metricChip("\u591a\u5468\u671f\u96c6\u5408", `${escapeHtml(horizonsText)}D`)}
+        </div>
+        <p class="desc">\u5468\u671f\u8868\u73b0\u4f7f\u7528\u6bcf\u65e5\u622a\u9762 Spearman IC\uff1b\u672a\u6765\u6536\u76ca\u6309 close.shift(-horizon) / close - 1 \u8ba1\u7b97\u3002\u5206\u5c42\u6536\u76ca\u6309\u6bcf\u65e5\u56e0\u5b50\u503c\u6392\u540d\u5206\u7ec4\uff0c\u591a\u7a7a\u6536\u76ca\u4e3a\u6700\u9ad8\u7ec4\u51cf\u6700\u4f4e\u7ec4\uff0c\u65b9\u5411\u5355\u8c03\u6027\u4e3a\u5206\u7ec4\u6392\u540d\u4e0e\u5206\u7ec4\u6536\u76ca\u7684 Spearman \u76f8\u5173\u3002</p>
+        <div class="mini-bars">
+          <div class="viz-block">
+            <h4>Mean IC / ICIR \u8de8\u5468\u671f</h4>
+            ${renderMetricBars(periods, "mean_ic", "Mean IC", fmtNumber)}
+            ${renderMetricBars(periods, "icir", "ICIR", fmtNumber)}
+          </div>
+          <div class="viz-block">
+            <h4>\u591a\u7a7a\u6536\u76ca / \u5355\u8c03\u6027\u8de8\u5468\u671f</h4>
+            ${renderMetricBars(periods, "long_short_return", "\u591a\u7a7a", fmtPercent)}
+            ${renderMetricBars(periods, "directional_monotonicity", "\u5355\u8c03\u6027", fmtNumber)}
+          </div>
+        </div>
+        <div class="viz-grid">
+          <div class="viz-block">
+            <h4>\u591a\u5468\u671f\u8868\u73b0</h4>
+            ${table(["Horizon", "Mean IC", "ICIR", "IC \u80dc\u7387", "\u591a\u7a7a\u6536\u76ca", "\u5355\u8c03\u6027", "\u65b9\u5411"], periodRows)}
+          </div>
+          <div class="viz-block">
+            <h4>\u5206\u5c42\u6536\u76ca</h4>
+            ${renderStratifiedBars(stratified.groups || [])}
+            <div class="meta" style="margin-top:12px">
+              <span class="pill">\u5206\u7ec4\uff1a${stratified.group_count || params.quantile_groups || "-"}</span>
+              <span class="pill">\u591a\u7a7a\uff1a${fmtPercent(stratified.long_short_return)}</span>
+              <span class="pill">\u539f\u59cb\u5355\u8c03\uff1a${fmtNumber(stratified.monotonicity_corr)}</span>
+              <span class="pill">\u65b9\u5411\u5355\u8c03\uff1a${fmtNumber(stratified.directional_monotonicity)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function metricChip(label, value) {
+      return `
+        <div class="metric-chip">
+          <div class="label">${label}</div>
+          <div class="value small">${value}</div>
+        </div>
+      `;
+    }
+
+    function renderMetricBars(items, key, label, formatter) {
+      const values = items.map((item) => Number(item[key])).filter((value) => !Number.isNaN(value));
+      if (!values.length) return `<div class="desc">${label}\uff1a-</div>`;
+      const maxAbs = Math.max(...values.map((value) => Math.abs(value)), 0.000001);
+      return `
+        <div class="desc" style="margin-top:8px">${label}</div>
+        ${items.map((item) => {
+          const value = Number(item[key]);
+          if (Number.isNaN(value)) {
+            return `
+              <div class="bar-row">
+                <div>${item.horizon ?? "-"}D</div>
+                <div class="bar-track"></div>
+                <div class="bar-value">-</div>
+              </div>
+            `;
+          }
+          const width = Math.max(2, Math.min(100, Math.abs(value) / maxAbs * 100));
+          return `
+            <div class="bar-row">
+              <div>${item.horizon ?? "-"}D</div>
+              <div class="bar-track">
+                <div class="bar-fill ${value < 0 ? "negative" : ""}" style="width:${width}%"></div>
+              </div>
+              <div class="bar-value">${formatter(value)}</div>
+            </div>
+          `;
+        }).join("")}
+      `;
+    }
+
+    function renderStratifiedBars(groups) {
+      if (!groups.length) return `<div class="notice">\u65e0\u5206\u5c42\u6536\u76ca\u6570\u636e\u3002</div>`;
+      const maxAbs = Math.max(...groups.map((item) => Math.abs(Number(item.mean_return) || 0)), 0.000001);
+      return groups.map((item) => {
+        const value = Number(item.mean_return) || 0;
+        const width = Math.max(2, Math.min(100, Math.abs(value) / maxAbs * 100));
+        return `
+          <div class="bar-row">
+            <div>${escapeHtml(item.label || "-")}</div>
+            <div class="bar-track">
+              <div class="bar-fill ${value < 0 ? "negative" : ""}" style="width:${width}%"></div>
+            </div>
+            <div class="bar-value">${fmtPercent(value)}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderRanked(data) {
+      const rankedFactors = data.ranked_factors || [];
+      const sourcedCount = rankedFactors.filter((item) => item.research_source && item.research_source.source_type !== "unattributed").length;
+      const unattributedCount = rankedFactors.filter((item) => item.research_source?.source_type === "unattributed").length;
+      const rows = rankedFactors.map((item, index) => {
+        const source = item.research_source || {};
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(item.name)}</td>
+            <td>${item.iteration || "-"}</td>
+            <td>${fmtNumber(item.score)}</td>
+            <td>${qualityTag(item.quality)}</td>
+            <td>${escapeHtml(directionNames[item.direction] || item.direction || "-")}</td>
+            <td>${escapeHtml(source.source_type || "-")}</td>
+            <td>${escapeHtml(source.strategy || "-")}</td>
+            <td class="source-cell">${escapeHtml((source.parent_factors || []).join(", ") || "-")}</td>
+            <td class="source-cell"><div class="source-note">${escapeHtml(summarizeFeedbackBasis(source.feedback_basis))}</div></td>
+            <td class="source-cell"><div class="source-note">${escapeHtml(source.source_note || "-")}</div></td>
+            <td>${fmtNumber(item.metrics?.mean_ic)}</td>
+            <td>${fmtNumber(item.metrics?.icir)}</td>
+            <td>${fmtPercent(item.metrics?.long_short_return)}</td>
+          </tr>
+        `;
+      }).join("");
+      rankedDashboard.innerHTML = `
+        <div class="meta" style="margin-bottom:12px">
+          <span class="pill">\u6392\u5e8f\u8303\u56f4\uff1a${data.rank_scope === "all_iterations" ? "\u5168\u90e8\u8f6e\u6b21" : "\u5f53\u524d\u8f6e\u6b21"}</span>
+          <span class="pill">\u56e0\u5b50\u6570\u91cf\uff1a${data.factor_count || 0}</span>
+          <span class="pill">\u6709\u6548\u56e0\u5b50\uff1a${data.effective_count || 0}</span>
+          <span class="pill">\u4f18\u79c0\u56e0\u5b50\uff1a${data.excellent_count || 0}</span>
+          <span class="pill">\u6765\u6e90\u5df2\u8ffd\u8e2a\uff1a${sourcedCount}</span>
+          <span class="pill">\u672a\u5f52\u56e0\uff1a${unattributedCount}</span>
+        </div>
+        ${table(["\u6392\u540d", "\u56e0\u5b50", "\u8f6e\u6b21", "\u8bc4\u5206", "\u8d28\u91cf", "\u65b9\u5411", "\u6765\u6e90\u7c7b\u578b", "\u7b56\u7565", "\u7236\u56e0\u5b50", "\u53cd\u9988\u4f9d\u636e", "\u6765\u6e90\u8bf4\u660e", "\u5e73\u5747\u4fe1\u606f\u7cfb\u6570", "\u4fe1\u606f\u7a33\u5b9a\u6bd4", "\u591a\u7a7a\u6536\u76ca"], rows, "ranked-table")}
+      `;
+    }
+
+    function summarizeFeedbackBasis(feedback) {
+      if (!feedback) return "-";
+      const parts = [];
+      const keys = ["next_round_plan", "promote_patterns", "reject_patterns", "diagnostics", "guardrails"];
+      keys.forEach((key) => {
+        const values = feedback[key] || [];
+        if (values.length) parts.push(values.slice(0, 2).join("; "));
+      });
+      const blueprints = feedback.candidate_blueprints || [];
+      if (blueprints.length) {
+        parts.push(blueprints.slice(0, 2).map((item) => item.name || item.hypothesis || item.expression_intent || "").filter(Boolean).join("; "));
+      }
+      return parts.filter(Boolean).join(" | ") || "-";
+    }
+
+    function card(label, value, small = false) {
+      return `
+        <div class="card">
+          <div class="label">${label}</div>
+          <div class="value ${small ? "small" : ""}">${value}</div>
+        </div>
+      `;
+    }
+
+    function table(headers, rows, className = "") {
+      return `
+        <div class="table-wrap ${className}">
+          <table>
+            <thead><tr>${headers.map((item) => `<th>${item}</th>`).join("")}</tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function showReadError(target, fileName, error) {
+      target.innerHTML = `<div class="notice">\u65e0\u6cd5\u52a8\u6001\u8bfb\u53d6 ${escapeHtml(fileName)}\uff1a${escapeHtml(error.message)}\u3002\u8bf7\u901a\u8fc7\u672c\u5730 HTTP \u670d\u52a1\u6253\u5f00\u9875\u9762\u3002</div>`;
+    }
+
+    function showRuntimeStatusNotice() {
+      loopDashboard.innerHTML = `<div class="notice">\u5c1a\u672a\u542f\u52a8\u672c\u6b21\u56e0\u5b50\u6316\u6398\u4efb\u52a1\u3002</div>`;
+    }
+
+    function renderArchiveButtons() {
+      if (!archives.length) {
+        archiveBar.innerHTML = `<span class="notice">\u6682\u65e0 results \u5386\u53f2\u68c0\u67e5\u70b9</span>`;
+        return;
+      }
+      archiveBar.innerHTML = archives.map((item) => `
+        <button class="archive-button ${item.prefix === activeArchivePrefix ? "active" : ""}" data-prefix="${item.prefix}">
+          ${escapeHtml(item.label)}
+        </button>
+      `).join("");
+      archiveBar.querySelectorAll("button").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeArchivePrefix = button.dataset.prefix || "";
+          renderArchiveButtons();
+          loadCheckpoint(activeArchivePrefix);
+        });
+      });
+    }
+
+    function loadArchives() {
+      fetch("/api/dashboard/results", { cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+          return response.json();
+        })
+        .then((data) => {
+          archives = data.archives || [];
+          if (!archives.some((item) => item.prefix === activeArchivePrefix)) {
+            activeArchivePrefix = data.latest_prefix || archives[0]?.prefix || "";
+          }
+          renderArchiveButtons();
+          loadCheckpoint(activeArchivePrefix);
+        })
+        .catch(() => {
+          renderArchiveButtons();
+        });
+    }
+
+    function startPipelineFromWeb() {
+      const maxIterations = clampInteger(runMaxIterations.value, 1, 20, 3);
+      const factorsPerRound = clampInteger(runFactorsPerRound.value, 1, 20, 3);
+      runMaxIterations.value = maxIterations;
+      runFactorsPerRound.value = factorsPerRound;
+      runLoopButton.disabled = true;
+      runMaxIterations.disabled = true;
+      runFactorsPerRound.disabled = true;
+      runLoopStatus.textContent = `\u6b63\u5728\u542f\u52a8 pipeline\uff1a${maxIterations} \u8f6e\uff0c\u6bcf\u8f6e ${factorsPerRound} \u4e2a\u56e0\u5b50 ...`;
+      fetch("/api/dashboard/run-loop", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({max_iterations: maxIterations, factors_per_round: factorsPerRound}),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (!data.accepted) {
+            runLoopStatus.textContent = data.message || "\u5df2\u6709 pipeline \u5728\u8fd0\u884c";
+          } else {
+            runLoopStatus.textContent = "\u5df2\u542f\u52a8\uff0c\u6b63\u5728\u8fd0\u884c...";
+          }
+          pollRunState();
+        })
+        .catch((error) => {
+          runLoopButton.disabled = false;
+          runMaxIterations.disabled = false;
+          runFactorsPerRound.disabled = false;
+          runLoopStatus.textContent = `\u542f\u52a8\u5931\u8d25\uff1a${error.message}`;
+        });
+    }
+
+    function pollRunState() {
+      fetch("/api/dashboard/run-state", { cache: "no-store" })
+        .then((response) => response.json())
+        .then((state) => {
+          if (state.running) {
+            runLoopButton.disabled = true;
+            runMaxIterations.disabled = true;
+            runFactorsPerRound.disabled = true;
+            runLoopStatus.textContent = `\u6b63\u5728\u8fd0\u884c pipeline\uff1a${state.max_iterations || "-"} \u8f6e\uff0c\u6bcf\u8f6e ${state.factors_per_round || "-"} \u4e2a\u56e0\u5b50`;
+            if (state.status) {
+              liveStatus = state.status;
+              renderLoop(state.status);
+              if (state.status.result_dir) {
+                activeArchivePrefix = `/${String(state.status.result_dir).replaceAll("\\", "/")}/`;
+              }
+            } else {
+              loadStatus(activeArchivePrefix);
+            }
+            window.setTimeout(pollRunState, 5000);
+            return;
+          }
+          runLoopButton.disabled = false;
+          runMaxIterations.disabled = false;
+          runFactorsPerRound.disabled = false;
+          if (state.error) {
+            runLoopStatus.textContent = `pipeline \u5931\u8d25\uff1a${state.error}`;
+            loadCheckpoint(activeArchivePrefix);
+            loadArchives();
+            return;
+          }
+          if (state.status) {
+            liveStatus = state.status;
+            runLoopStatus.textContent = `pipeline \u5b8c\u6210\uff1a${state.status.run_id || "-"}`;
+            activeArchivePrefix = state.status.result_dir ? `/${String(state.status.result_dir).replaceAll("\\", "/")}/` : "";
+            loadArchives();
+            loadCheckpoint(activeArchivePrefix);
+            renderLoop(state.status);
+            return;
+          }
+          runLoopStatus.textContent = "\u672a\u542f\u52a8";
+        })
+        .catch(() => {
+          runLoopButton.disabled = false;
+          runMaxIterations.disabled = false;
+          runFactorsPerRound.disabled = false;
+          runLoopStatus.textContent = "\u672a\u8fde\u63a5\u672c\u5730 Web \u670d\u52a1";
+        });
+    }
+
+    function clampInteger(value, min, max, fallback) {
+      const number = Number.parseInt(value, 10);
+      if (Number.isNaN(number)) return fallback;
+      return Math.max(min, Math.min(max, number));
+    }
+
+    function loadCheckpoint(prefix = "") {
+      if (!prefix) {
+        const message = "\u6682\u65e0 results \u8fd0\u884c\u7ed3\u679c\u3002\u8bf7\u5728 Web \u7aef\u542f\u52a8 pipeline\uff0c\u6216\u5c06\u7ed3\u679c\u653e\u5165 results/<timestamp>/\u3002";
+        baseDashboard.innerHTML = `<div class="notice">${message}</div>`;
+        showRuntimeStatusNotice();
+        calVisualDashboard.innerHTML = `<div class="notice">${message}</div>`;
+        rankedDashboard.innerHTML = `<div class="notice">${message}</div>`;
+        return;
+      }
+      const basePrefix = prefix;
+      const baseFactorPath = basePrefix + "base_factors.json";
+
+      fetch(baseFactorPath, { cache: "no-store" })
+        .then((response) => response.json())
+        .then(renderBase)
+        .catch((error) => showReadError(baseDashboard, "base_factors.json", error));
+
+      loadStatus(basePrefix);
+
+      fetch(basePrefix + "cal_visualizations.json", { cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+          return response.json();
+        })
+        .then((data) => renderCalVisualManifest(data, basePrefix))
+        .catch((error) => showReadError(calVisualDashboard, "cal_visualizations.json", error));
+
+      fetch(basePrefix + "ranked_factors.json", { cache: "no-store" })
+        .then((response) => response.json())
+        .then(renderRanked)
+        .catch((error) => showReadError(rankedDashboard, "ranked_factors.json", error));
+    }
+
+    function loadStatus(prefix = "") {
+      if (!prefix) return;
+      fetch(prefix + "status.json", { cache: "no-store" })
+        .then((response) => response.json())
+        .then((status) => {
+          liveStatus = status;
+          renderLoop(status);
+        })
+        .catch((error) => showReadError(loopDashboard, "status.json", error));
+    }
+
+    runLoopButton.addEventListener("click", startPipelineFromWeb);
+    loadArchives();
+    pollRunState();
+  </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mas-factorminer"
+version = "0.1.0"
+description = "ETF factor mining pipeline with data preparation and base factor construction."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+  "pandas",
+  "numpy",
+  "pyarrow",
+  "PyYAML",
+]
+
+[project.scripts]
+mas-factorminer = "run:main"
+
+[tool.setuptools]
+py-modules = ["run"]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
