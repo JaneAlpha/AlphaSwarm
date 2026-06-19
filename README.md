@@ -4,9 +4,9 @@
 
 Multi-agent LLM system for quantitative factor discovery, featuring agent orchestration, tool-calling factor validation, hypothesis generation, performance evaluation, and iterative ranking under a controlled analyst-style research process.
 
-AlphaSwarm is a multi-agent LLM system for quantitative factor discovery. It is built around a controlled analyst-style research process: agents propose factor hypotheses, validate expressions through tools, calculate factor performance, evaluate research quality, and iteratively rank candidate factors.
+AlphaSwarm is a quantitative factor discovery system built with multiple LLM agents. It covers factor hypothesis generation, expression validation, factor calculation, performance evaluation, and iterative ranking.
 
-The project is aimed at developers and researchers who want to study how LLM agents can participate in a quantitative research loop without turning factor discovery into unrestricted text generation.
+The project is aimed at developers and researchers who want to study agent-based quantitative research systems with explicit tool use and measurable factor evaluation.
 
 ## What It Does
 
@@ -18,14 +18,48 @@ The project is aimed at developers and researchers who want to study how LLM age
 - Ranks candidate factors and feeds evaluation feedback into later exploration.
 - Records local run outputs for audit and dashboard review.
 
-## Agent Roles
+## Technical Highlights
+
+### Controlled Agent Loop
+
+AlphaSwarm uses a four-agent loop rather than a single prompt that asks the model to list factors. Each agent has a separate research responsibility, and the pipeline passes structured results between them.
+
+The loop is designed around a simple research cycle:
+
+```text
+Ideator -> Calculator -> Evaluator -> Optimizer -> next round Ideator
+```
+
+This makes factor discovery closer to an analyst process: propose a hypothesis, test whether it can be computed, evaluate the result, then use feedback to guide the next attempt.
+
+### Agent Orchestration
+
+The system separates agent responsibilities:
 
 | Agent | Responsibility |
 | --- | --- |
 | `FactorIdeator` | Generates factor hypotheses and candidate expressions under research constraints. |
-| `FactorCalculator` | Validates, repairs when possible, computes factor values, and calculates metrics. |
+| `FactorCalculator` | Validates expressions, repairs when possible, computes factor values, and calculates metrics. |
 | `FactorEvaluator` | Reviews calculated factors using quantitative metrics and LLM analysis. |
 | `FactorOptimizer` | Interprets evaluation feedback and guides the next round of exploration. |
+
+This separation was chosen to keep ideation, calculation, evaluation, and optimization from collapsing into one opaque model response.
+
+### Tool-Calling Validation
+
+Factor ideas are expected to pass through tools before becoming calculation targets. The agent loop uses tool calls to check factor expressions, available fields, supported operators, and computability. This reduces invalid expressions and makes the agent output easier to inspect.
+
+### Evaluation-Driven Iteration
+
+The system does not treat all generated factors equally. Candidate factors are calculated and evaluated with quantitative metrics such as IC, ICIR, multi-period performance, and stratified returns. Evaluation feedback is passed into later rounds so that the loop can refine exploration direction instead of repeatedly generating unrelated ideas.
+
+### Research Memory Boundary
+
+The project distinguishes research state from runtime tracing. Research memory is used to guide one loop lifecycle and retain minimal cross-round direction, while runtime status is used to locate agent progress and failures. This keeps research feedback separate from operational debugging records.
+
+### Skill-Guided Ideation
+
+The prompt layer supports skill documents for factor hypothesis generation and factor-task conversion. These skills give the agents domain-specific research patterns without hard-coding every candidate factor into the pipeline.
 
 ## Repository Layout
 
