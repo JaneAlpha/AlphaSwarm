@@ -364,6 +364,16 @@ cal_visualizations/
 
 The dashboard reads local run outputs and provides a project-level view of factor rankings, calculation results, reports, and visualized performance.
 
+## Limitations
+
+This project is a research prototype with several important limitations:
+
+- **Mathematical basis of LLM-driven factor mining.** Factor expression discovery is partly a search problem in a known mathematical expression space. Traditional quantitative research often uses genetic programming, sparse models, or other methods with clearer mathematical properties. The practical advantage of LLM-generated factor expressions still needs empirical validation. LLMs are more naturally suited to extracting research ideas from papers, reports, and domain text than to efficient mathematical search by themselves.
+- **Reliability of LLM mathematical reasoning.** Factor expressions require precise mathematical operations and logical validation. Tool calls can catch syntax errors, unavailable fields, invalid operators, and obvious computability failures. More subtle issues, including future leakage, overfitting, logically equivalent but unstable expressions, and weak economic reasoning, require additional controls and human review.
+- **Overfitting control.** Factor mining is exposed to false positives from multiple comparisons. Repeatedly searching a large factor space can produce high in-sample IC by chance. A complete validation protocol would need cross-validation, out-of-sample testing, walk-forward evaluation, and multiple-hypothesis correction.
+- **Limits of ETF daily data.** ETF daily panels can have low factor signal-to-noise. Diversification effects may weaken some factor families that are more visible in individual stocks or higher-frequency data. Factors found on ETF daily data may have limited predictive strength.
+- **Lack of live or out-of-sample evidence.** A factor-mining system should ultimately be judged by out-of-sample factor behavior and backtest evidence. A curated public case study with robust out-of-sample factor performance remains future work.
+
 ## Notes
 
 - This is a research prototype, not an investment advisory system.
